@@ -230,10 +230,10 @@ username/imagename:tag
 
 ## 参考文档:
 
-https://hub.docker.com/r/jenkins/jenkins/
-https://github.com/jenkinsci/docker/blob/master/README.md
-https://jenkins.io/doc/book/pipeline/docker/
-https://jenkins.io/doc/book/using/using-credentials/
-https://getintodevops.com/blog/building-your-first-docker-image-with-jenkins-2-guide-for-developers
-https://github.com/jenkinsci/gitlab-plugin/issues/375
-https://www.swtestacademy.com/jenkins-gitlab-integration/
+* https://hub.docker.com/r/jenkins/jenkins/
+* https://github.com/jenkinsci/docker/blob/master/README.md
+* https://jenkins.io/doc/book/pipeline/docker/
+* https://jenkins.io/doc/book/using/using-credentials/
+* https://getintodevops.com/blog/building-your-first-docker-image-with-jenkins-2-guide-for-developers
+* https://github.com/jenkinsci/gitlab-plugin/issues/375
+* https://www.swtestacademy.com/jenkins-gitlab-integration/
