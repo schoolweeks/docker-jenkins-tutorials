@@ -12,7 +12,7 @@
 
 ## Jenkins 安装
 
-[Jenkins 安装详见 Jenkins 安装](install-jenkins.md)
+[详见 Jenkins 安装](install-jenkins.md)
 
 ## Gitlab 安装
 
@@ -27,9 +27,10 @@ Gitlab 默认管理账号（root）；
 
 ![Register User](images/gitlab-register-user.png)
 
-> 注: 建议为个人访问建立个人账号，并加入到管理组;
+> 注: 建议为个人及 CI 创建独立账号，并赋予相关权限；
+> 本示例中我们创建 gitadmin 账号用于 CI 及管理操作；
 
-以管理员账号登录 gitlab，点击 Admin Area -> Overview -> User 为我刚创建的账号（gitlab）添加到管理组；
+以管理员账号登录 gitlab，点击 Admin Area -> Overview -> User 为我刚创建的账号（gitadmin）添加到管理组；
 
 ![Gitlab User Access Level](images/gitlab-user-access-level.png)
 
@@ -37,10 +38,9 @@ Gitlab 默认管理账号（root）；
 
 图略
 
-```
-git remote add gitlab http://192.168.33.10/groups/private_project.git
-git push   gitlab master
+将准备好的 Gradle 项目推送到 Gitlab 私有仓库
 
+```
 git remote add gitlab http://192.168.33.10/recruiting-system/2018-04-02-01-27-37-1522632457.git
 git push gitlab master
 ```
@@ -83,9 +83,13 @@ $ ll /tmp/jenkins*
 
 ### 为 Jenkins 添加部署 Key（Add Credentials）
 
+private key 是使用刚刚生成的私钥（jenkins）
+
 ![Jenkins Add Deploy Key](images/jenkins-add-deploy-key.png)
 
 ### 为 Gitlab 添加部署 Key
+
+部署 Key 使用刚刚生成的公钥（jenkins.pub）
 
 点击项目设置 Settings -> Repository -> Deploy Keys
 
@@ -111,13 +115,13 @@ Jenkins 为了与 Gitlab 集成，需要借助 Gitlab 的插件才能完成；
 
 Manager Jenkins -> Manager Plugins -> Avaiable
 
-搜过 gitlab
+勾选 Gitlab 插件，安装并重启 Jenkins。
 
 ![Jenkins Install Gitlab Plugin](images/jenkins-install-gitlab-plugin.png)
 
 ### 为 Jenkins 创建 API 访问 Token
 
-使用刚刚创建的 gitadmin 账号，进入个人设置页面（Settings -> Access Token）：
+使用刚刚创建的 gitadmin 账号登录 gitlab，进入个人设置页面（Settings -> Access Token）：
 
 ![Gitlab Personal Access Token](images/gitlab-personal-access-token.png)
 
@@ -125,16 +129,27 @@ Manager Jenkins -> Manager Plugins -> Avaiable
 
 ![Gitlab Personal Api Token](images/gitlab-personal-api-token.png)
 
+### 为 Jenkins 配置 gitlab connections
 
-![Jenkins Gitlab Api Token](images/gitlab-api-token.png)
+Manage Jenkins -> Configure System -> Gitlab
+
+输入 gitlab 的名称及 gitlab 的访问地址
 
 ![Jenkins Gitlab Connections](images/jenkins-gitlab-connections.png)
 
+Jenkins 配置 Gitlab API token（Add Credentials）
+
+![Jenkins Gitlab Api Token](images/gitlab-api-token.png)
+
 测试成功后，点击保存。
 
-回到 Jenkins Pipeline 配置界面，生成 `secret token`
+### Jenkins Pipeline 配置 `secret token`
+
+回到刚刚创建的 Jenkins Pipeline 配置界面，生成 `secret token`
 
 ![Jenkins Build Triggers](images/jenkins-build-triggers.png)
+
+### gitlab 配置 Webhook 地址
 
 拷贝 `secret token` 配置 Gitlab Web-Hooks
 
@@ -144,25 +159,27 @@ Manager Jenkins -> Manager Plugins -> Avaiable
 
 ![Gitlab Integrations](images/gitlab-inntegrations.png)
 
-> 注：关闭 SSL 验证，我们再次并没有使用 SSL 服务；
+> 注：关闭 SSL 验证，我们再此并没有使用 SSL 服务；
 
 Gitlab Webhook 配置成功后，点击测试推送 `push event` 事件，即可自动触发 Jenkins Pipelien 做自动构建；
 
-默认发送测试 push 请求将返回 500 错误，
+默认发送测试 push 请求将返回 500 错误，这是因为 gitlab 的安全设置默认不允许访问本地的 webhooks；
 
-Admin Area -> Settings -> Outbound Requests
+登录 gitlab 管理员账号，Admin Area -> Settings -> Outbound Requests
 
 勾选 'Allow requests to the local network from hooks and services.' 即可解决；
 
 ![Gitlab Outbound Requests](images/gitlab-outbound-requests.png)
 
+再次测试，即可正常触发 Jenkins Pipeline 构建。
+
 ## Pipeline 定义构建 Docker Image，推送到 Docker Hub 官方仓库
 
 在此，我们以 Docker Hub 官方仓库为例，演示如何构建 docker image，将镜像推送到 Docker Hub 官方仓库；
 
-### Docker Hub 官方仓库创建
+### Docker Hub 账号申请
 
-Docker Hub 官方仓库地址
+Docker Hub 官方仓库地址，输入如下地址，创建 Docker Hub 账号。
 
 https://hub.docker.com/
 
@@ -177,6 +194,8 @@ Jenkins 首页 -> Credentials -> System -> Global credentials -> Add Credentials
 注: credentials id 为方便 Jenkinsfile 中引用 credentials 使用;
 
 ### Jenkinsfile 
+
+Jenkinsfile-2 示例:
 
 ```
 #! groovy
@@ -207,12 +226,17 @@ node {
 ```
 
 * 我们定义第三个 stage `package`
-* docker.withRegistry 为定义 Docker 仓库，我们使用 Docker Hub 官方仓库，第二个参数为 credentials Id
-* docker.build 为镜像构建，注册镜像的名称及TAG，由于 Docker Hub 上镜像格式为：
+* docker.withRegistry 第一个参数为定义 Docker 仓库，我们使用 Docker Hub 官方仓库，第二个参数为 credentials Id
+* docker.build 为镜像构建，包含镜像的名称及TAG，格式如下：
 
+```
+# Docker Hub 上私有镜像格式为（在此省略官方仓库地址）：
 username/imagename:tag
 
-因此，我们在镜像格式的时候要遵循 Docker Hub 的规范，如果是私有仓库，此处可以随意定义；
+# 私有仓库镜像格式（私有仓库镜像 username 可以省略，registry 为私有仓库地址，默认端口号 5000）：
+registry:5000/username/imagename:tag
+```
+
 * TAG 标识，我们使用环境变量（${env.BUILD_ID}），BUILD_ID 即为构建 ID。注：这个值要持续的变化，我们一般使用 BUILD_ID 作为版本号；
 * customImage.push() 即为推送镜像到 Docker Hub 官方仓库；
 
@@ -226,7 +250,17 @@ username/imagename:tag
 
 如上图，右侧截图显示了保存的 Artifact、测试报告、stage view 等；
 
-至此，我们持续集成的工作就基本结束.
+至此，我们简易版的持续集成的工作就基本结束.
+
+### 小提示
+
+你可能会有疑惑，该如何写 Jenkinsfile，只要了解了 pipeline、node、stage 等基本概念后，借助 Jenkins 脚手架可以帮助我们生成 pipeline step。
+
+Jenkins Pipeline 配置界面 -> Pipeline Syntax
+
+![Jekins Pipeline Syntax](images/jenkins-pipeline-syntax.png)
+
+当然要想实现更复杂的 Pipeline，还是要借助 `groovy` 的语法。
 
 ## 参考文档:
 
