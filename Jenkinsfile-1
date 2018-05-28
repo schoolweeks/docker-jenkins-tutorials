@@ -1,0 +1,17 @@
+#! groovy
+
+node {
+    stage('checkout') {
+        checkout scm
+    }
+
+    stage('build') {
+        sh './gradlew clean build'
+        step([$class: 'ArtifactArchiver', artifacts: '**/build/libs/*.jar', fingerprint: true])
+    }
+
+    stage('test') {
+        sh './gradlew test'
+        step([$class: 'JUnitResultArchiver', testResults: '**/build/test-results/test/TEST-*.xml'])
+    }
+}
